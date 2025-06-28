@@ -1,0 +1,966 @@
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\App.vue
+================================================================================
+
+<script setup>
+import { onMounted } from 'vue'
+import { RouterView } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
+
+const { initAuth } = useAuth()
+
+onMounted(() => {
+  initAuth()
+})
+</script>
+
+<template>
+  <div id="app">
+    <RouterView />
+  </div>
+</template>
+
+<style>
+#app {
+  min-height: 100vh;
+}
+</style>
+
+
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\main.js
+================================================================================
+
+import './assets/main.css'
+
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+
+import App from './App.vue'
+import router from './router'
+
+const app = createApp(App)
+
+app.use(createPinia())
+app.use(router)
+
+app.mount('#app')
+
+
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\assets\main.css
+================================================================================
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\components\ConfigParameter.vue
+================================================================================
+
+<template>
+  <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+    <div class="flex flex-col space-y-4">
+      <div>
+        <span class="text-sm text-gray-400">Parameter Key:</span>
+        <span class="text-white ml-2">{{ parameterKey }}</span>
+      </div>
+
+      <div>
+        <span class="text-sm text-gray-400">Value:</span>
+        <span class="text-white ml-2">{{ value }}</span>
+      </div>
+
+      <div>
+        <span class="text-sm text-gray-400">Description:</span>
+        <span class="text-gray-300 ml-2">{{ description }}</span>
+      </div>
+
+      <div>
+        <span class="text-sm text-gray-400">Create Date:</span>
+        <span class="text-gray-300 ml-2">{{ formatDate(createDate) }}</span>
+      </div>
+
+      <div class="flex space-x-3 pt-2">
+        <button
+          @click="$emit('edit')"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Edit
+        </button>
+        <button
+          @click="$emit('delete')"
+          class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+        >
+          Del
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+defineProps({
+  parameterKey: String,
+  value: [String, Number],
+  description: String,
+  createDate: [String, Number, Date],
+})
+
+defineEmits(['edit', 'delete'])
+
+const formatDate = (date) => {
+  if (!date) return 'N/A'
+  return new Date(date).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+</script>
+
+
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\components\ConfigTable.vue
+================================================================================
+
+<template>
+  <div class="bg-gray-800 rounded-lg overflow-hidden">
+    <!-- Desktop Table -->
+    <div class="hidden md:block">
+      <table class="w-full">
+        <thead class="bg-gray-700">
+          <tr>
+            <th class="px-6 py-4 text-left text-sm font-medium text-gray-300">Parameter Key</th>
+            <th class="px-6 py-4 text-left text-sm font-medium text-gray-300">Value</th>
+            <th class="px-6 py-4 text-left text-sm font-medium text-gray-300">Description</th>
+            <th class="px-6 py-4 text-left text-sm font-medium text-gray-300">
+              Create Date
+              <button @click="toggleSort" class="ml-2 text-gray-400 hover:text-white">↑↓</button>
+            </th>
+            <th class="px-6 py-4 text-left text-sm font-medium text-gray-300">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-700">
+          <tr v-for="(item, key) in sortedConfig" :key="key" class="hover:bg-gray-700">
+            <td class="px-6 py-4 text-sm text-white">{{ key }}</td>
+            <td class="px-6 py-4 text-sm text-white">{{ item.value }}</td>
+            <td class="px-6 py-4 text-sm text-gray-300">{{ item.description }}</td>
+            <td class="px-6 py-4 text-sm text-gray-300">{{ formatDate(item.createDate) }}</td>
+            <td class="px-6 py-4 text-sm">
+              <div class="flex space-x-2">
+                <button
+                  @click="editParameter(key, item)"
+                  class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+                >
+                  Edit
+                </button>
+                <button
+                  @click="deleteParameter(key)"
+                  class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+                >
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile Cards -->
+    <div class="md:hidden space-y-4 p-4">
+      <ConfigParameter
+        v-for="(item, key) in sortedConfig"
+        :key="key"
+        :parameter-key="key"
+        :value="item.value"
+        :description="item.description"
+        :create-date="item.createDate"
+        @edit="editParameter(key, item)"
+        @delete="deleteParameter(key)"
+      />
+    </div>
+
+    <!-- Add New Parameter Form -->
+    <div class="bg-gray-700 p-4 border-t border-gray-600">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <input
+          v-model="newParameter.key"
+          placeholder="New Parameter"
+          class="px-3 py-2 bg-gray-600 text-white rounded border border-gray-500 focus:border-blue-500 focus:outline-none"
+        />
+        <input
+          v-model="newParameter.value"
+          placeholder="Value"
+          class="px-3 py-2 bg-gray-600 text-white rounded border border-gray-500 focus:border-blue-500 focus:outline-none"
+        />
+        <input
+          v-model="newParameter.description"
+          placeholder="New Description"
+          class="px-3 py-2 bg-gray-600 text-white rounded border border-gray-500 focus:border-blue-500 focus:outline-none"
+        />
+        <button
+          @click="addParameter"
+          :disabled="!canAddParameter"
+          class="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          ADD
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue'
+import ConfigParameter from './ConfigParameter.vue'
+
+const props = defineProps({
+  config: Object,
+})
+
+const emit = defineEmits(['update', 'edit', 'delete'])
+
+const sortAscending = ref(true)
+const newParameter = ref({
+  key: '',
+  value: '',
+  description: '',
+})
+
+const configItems = computed(() => {
+  const items = {}
+  Object.entries(props.config).forEach(([key, value]) => {
+    if (typeof value === 'object' && value !== null) {
+      items[key] = value
+    } else {
+      // Convert simple values to object format
+      items[key] = {
+        value: value,
+        description: getDefaultDescription(key),
+        createDate: Date.now(),
+      }
+    }
+  })
+  return items
+})
+
+const sortedConfig = computed(() => {
+  const entries = Object.entries(configItems.value)
+  return Object.fromEntries(
+    entries.sort(([, a], [, b]) => {
+      const dateA = new Date(a.createDate || 0)
+      const dateB = new Date(b.createDate || 0)
+      return sortAscending.value ? dateA - dateB : dateB - dateA
+    }),
+  )
+})
+
+const canAddParameter = computed(() => {
+  return newParameter.value.key && newParameter.value.value && newParameter.value.description
+})
+
+const toggleSort = () => {
+  sortAscending.value = !sortAscending.value
+}
+
+const addParameter = () => {
+  if (!canAddParameter.value) return
+
+  const updatedConfig = {
+    ...props.config,
+    [newParameter.value.key]: {
+      value: newParameter.value.value,
+      description: newParameter.value.description,
+      createDate: Date.now(),
+    },
+  }
+
+  emit('update', updatedConfig)
+
+  // Reset form
+  newParameter.value = {
+    key: '',
+    value: '',
+    description: '',
+  }
+}
+
+const editParameter = (key, item) => {
+  emit('edit', { key, ...item })
+}
+
+const deleteParameter = (key) => {
+  if (confirm(`Are you sure you want to delete "${key}"?`)) {
+    const updatedConfig = { ...props.config }
+    delete updatedConfig[key]
+    emit('delete', updatedConfig)
+  }
+}
+
+const formatDate = (date) => {
+  if (!date) return 'N/A'
+  return new Date(date).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const getDefaultDescription = (key) => {
+  const descriptions = {
+    freeUsageLimit: 'Maximum free usage allowed',
+    supportEmail: 'Support contact email',
+    privacyPage: 'Privacy policy page URL',
+    minimumVersion: 'Minimum required version of the app',
+    latestVersion: 'Latest version of the app',
+    compressionQuality: 'Image compression quality',
+    btnText: 'Button text for call to action',
+  }
+  return descriptions[key] || 'Configuration parameter'
+}
+</script>
+
+
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\components\EditModal.vue
+================================================================================
+
+<template>
+  <div
+    v-if="show"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+  >
+    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+      <h3 class="text-lg font-semibold text-white mb-4">Edit Parameter</h3>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-1">Parameter Key</label>
+          <input
+            v-model="editData.key"
+            :disabled="!isNewParameter"
+            class="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none disabled:opacity-50"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-1">Value</label>
+          <input
+            v-model="editData.value"
+            class="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
+          <textarea
+            v-model="editData.description"
+            rows="3"
+            class="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end space-x-3 mt-6">
+        <button
+          @click="$emit('close')"
+          class="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          @click="save"
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, watch } from 'vue'
+
+const props = defineProps({
+  show: Boolean,
+  parameter: Object,
+  isNewParameter: Boolean,
+})
+
+const emit = defineEmits(['close', 'save'])
+
+const editData = ref({
+  key: '',
+  value: '',
+  description: '',
+})
+
+watch(
+  () => props.parameter,
+  (newParam) => {
+    if (newParam) {
+      editData.value = { ...newParam }
+    }
+  },
+  { immediate: true },
+)
+
+const save = () => {
+  emit('save', editData.value)
+}
+</script>
+
+
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\composables\useAuth.js
+================================================================================
+
+import { ref, onMounted } from 'vue'
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
+import { auth } from '@/firebase/config'
+import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
+
+export function useAuth() {
+  const authStore = useAuthStore()
+  const router = useRouter()
+  const loading = ref(false)
+  const error = ref(null)
+
+  const signIn = async (email, password) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      const token = await userCredential.user.getIdToken()
+
+      authStore.setUser({
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        token,
+      })
+
+      router.push('/')
+    } catch (err) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const logout = async () => {
+    try {
+      await signOut(auth)
+      authStore.logout()
+      router.push('/signin')
+    } catch (err) {
+      error.value = err.message
+    }
+  }
+
+  const initAuth = () => {
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const token = await user.getIdToken()
+        authStore.setUser({
+          uid: user.uid,
+          email: user.email,
+          token,
+        })
+      } else {
+        authStore.logout()
+      }
+    })
+  }
+
+  return {
+    signIn,
+    logout,
+    initAuth,
+    loading,
+    error,
+  }
+}
+
+
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\composables\useConfig.js
+================================================================================
+
+import { ref } from 'vue'
+import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
+
+export function useConfig() {
+  const authStore = useAuthStore()
+  const config = ref({})
+  const loading = ref(false)
+  const error = ref(null)
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+
+  const fetchConfig = async () => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/config/admin`, {
+        headers: {
+          Authorization: `Bearer ${authStore.user?.token}`,
+        },
+      })
+      config.value = response.data
+    } catch (err) {
+      error.value = err.response?.data?.error || 'Failed to fetch configuration'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const updateConfig = async (configData) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await axios.put(`${API_BASE_URL}/config/admin`, configData, {
+        headers: {
+          Authorization: `Bearer ${authStore.user?.token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+      config.value = response.data
+      return response.data
+    } catch (err) {
+      error.value = err.response?.data?.error || 'Failed to update configuration'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  return {
+    config,
+    loading,
+    error,
+    fetchConfig,
+    updateConfig,
+  }
+}
+
+
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\firebase\config.js
+================================================================================
+
+import { initializeApp } from 'firebase/app'
+import { getAuth } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+}
+
+const app = initializeApp(firebaseConfig)
+export const auth = getAuth(app)
+export const db = getFirestore(app)
+export default app
+
+
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\router\index.js
+================================================================================
+
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import HomeView from '../views/HomeView.vue'
+import SignInView from '../views/SignInView.vue'
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [
+    {
+      path: '/',
+      name: 'home',
+      component: HomeView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/signin',
+      name: 'signin',
+      component: SignInView,
+      meta: { guestOnly: true },
+    },
+  ],
+})
+
+// Navigation guard
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore()
+
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    next('/signin')
+  } else if (to.meta.guestOnly && authStore.isAuthenticated) {
+    next('/')
+  } else {
+    next()
+  }
+})
+
+export default router
+
+
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\stores\auth.js
+================================================================================
+
+import { ref } from 'vue'
+import { defineStore } from 'pinia'
+
+export const useAuthStore = defineStore('auth', () => {
+  const user = ref(null)
+  const isAuthenticated = ref(false)
+
+  function setUser(userData) {
+    user.value = userData
+    isAuthenticated.value = !!userData
+  }
+
+  function logout() {
+    user.value = null
+    isAuthenticated.value = false
+  }
+
+  return { user, isAuthenticated, setUser, logout }
+})
+
+
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\stores\config.js
+================================================================================
+
+import { ref } from 'vue'
+import { defineStore } from 'pinia'
+
+export const useConfigStore = defineStore('config', () => {
+  const config = ref({})
+  const isLoading = ref(false)
+
+  function setConfig(configData) {
+    config.value = configData
+  }
+
+  function setLoading(status) {
+    isLoading.value = status
+  }
+
+  return { config, isLoading, setConfig, setLoading }
+})
+
+
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\views\HomeView.vue
+================================================================================
+
+<template>
+  <div class="min-h-screen bg-gray-900">
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+          <!-- Logo -->
+          <div class="flex items-center">
+            <div
+              class="w-8 h-8 bg-gradient-to-br from-pink-400 to-red-400 rounded transform rotate-45"
+            ></div>
+          </div>
+
+          <!-- User Menu -->
+          <div class="relative" ref="userMenuRef">
+            <button
+              @click="showUserMenu = !showUserMenu"
+              class="flex items-center space-x-2 text-gray-300 hover:text-white"
+            >
+              <div class="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fill-rule="evenodd"
+                    d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </div>
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </button>
+
+            <!-- Dropdown Menu -->
+            <div
+              v-if="showUserMenu"
+              class="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg border border-gray-700"
+            >
+              <div class="py-1">
+                <div class="px-4 py-2 text-sm text-gray-300 border-b border-gray-700">
+                  {{ authStore.user?.email }}
+                </div>
+                <button
+                  @click="handleLogout"
+                  class="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <!-- Loading State -->
+      <div v-if="loading" class="flex justify-center items-center h-64">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="text-center text-red-400">
+        <p>{{ error }}</p>
+        <button
+          @click="fetchConfig"
+          class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+
+      <!-- Configuration Table -->
+      <div v-else>
+        <ConfigTable
+          :config="config"
+          @update="handleUpdate"
+          @edit="handleEdit"
+          @delete="handleDelete"
+        />
+      </div>
+    </main>
+
+    <!-- Edit Modal -->
+    <EditModal
+      :show="showEditModal"
+      :parameter="editingParameter"
+      :is-new-parameter="false"
+      @close="closeEditModal"
+      @save="saveParameter"
+    />
+
+    <!-- Conflict Resolution Modal -->
+    <div
+      v-if="showConflictModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+        <h3 class="text-lg font-semibold text-red-400 mb-4">Configuration Conflict</h3>
+        <p class="text-gray-300 mb-4">
+          The configuration has been modified by another user. Please refresh to see the latest
+          changes.
+        </p>
+        <div class="flex justify-end">
+          <button
+            @click="handleConflictRefresh"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+import { useAuth } from '@/composables/useAuth'
+import { useConfig } from '@/composables/useConfig'
+import ConfigTable from '@/components/ConfigTable.vue'
+import EditModal from '@/components/EditModal.vue'
+
+const authStore = useAuthStore()
+const { logout } = useAuth()
+const { config, loading, error, fetchConfig, updateConfig } = useConfig()
+
+const showUserMenu = ref(false)
+const showEditModal = ref(false)
+const showConflictModal = ref(false)
+const editingParameter = ref(null)
+const userMenuRef = ref(null)
+
+onMounted(async () => {
+  await fetchConfig()
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+const handleClickOutside = (event) => {
+  if (userMenuRef.value && !userMenuRef.value.contains(event.target)) {
+    showUserMenu.value = false
+  }
+}
+
+const handleLogout = async () => {
+  await logout()
+}
+
+const handleUpdate = async (updatedConfig) => {
+  try {
+    await updateConfig(updatedConfig)
+  } catch (err) {
+    if (err.response?.status === 409) {
+      showConflictModal.value = true
+    }
+  }
+}
+
+const handleEdit = (parameter) => {
+  editingParameter.value = parameter
+  showEditModal.value = true
+}
+
+const handleDelete = async (updatedConfig) => {
+  try {
+    await updateConfig(updatedConfig)
+  } catch (err) {
+    if (err.response?.status === 409) {
+      showConflictModal.value = true
+    }
+  }
+}
+
+const closeEditModal = () => {
+  showEditModal.value = false
+  editingParameter.value = null
+}
+
+const saveParameter = async (parameterData) => {
+  try {
+    const updatedConfig = {
+      ...config.value,
+      [parameterData.key]: {
+        value: parameterData.value,
+        description: parameterData.description,
+        createDate: parameterData.createDate || Date.now(),
+      },
+    }
+    await updateConfig(updatedConfig)
+    closeEditModal()
+  } catch (err) {
+    if (err.response?.status === 409) {
+      showConflictModal.value = true
+      closeEditModal()
+    }
+  }
+}
+
+const handleConflictRefresh = async () => {
+  showConflictModal.value = false
+  await fetchConfig()
+}
+</script>
+
+
+================================================================================
+FILE: C:\Users\mmert\Desktop\Code\config-management\frontend\src\views\SignInView.vue
+================================================================================
+
+<template>
+  <div class="min-h-screen bg-gray-900 flex flex-col justify-center items-center px-4">
+    <!-- Logo -->
+    <div class="mb-8">
+      <div
+        class="w-16 h-16 bg-gradient-to-br from-pink-400 via-red-400 to-orange-400 rounded-lg transform rotate-45 mx-auto"
+      ></div>
+    </div>
+
+    <!-- Sign In Form -->
+    <div class="w-full max-w-sm">
+      <h2 class="text-center text-xl text-gray-400 mb-8">Please sign in</h2>
+
+      <form @submit.prevent="handleSignIn" class="space-y-4">
+        <div>
+          <input
+            v-model="email"
+            type="email"
+            placeholder="E-mail address"
+            required
+            class="w-full px-4 py-3 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <input
+            v-model="password"
+            type="password"
+            placeholder="Password"
+            required
+            class="w-full px-4 py-3 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+
+        <div v-if="error" class="text-red-400 text-sm text-center">
+          {{ error }}
+        </div>
+
+        <button
+          type="submit"
+          :disabled="loading"
+          class="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+        >
+          <span v-if="loading">Signing in...</span>
+          <span v-else>Sign in</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-16 text-center text-gray-500 text-sm">Codeway © 2021</div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { useAuth } from '@/composables/useAuth'
+
+const { signIn, loading, error } = useAuth()
+
+const email = ref('')
+const password = ref('')
+
+const handleSignIn = async () => {
+  await signIn(email.value, password.value)
+}
+</script>
+
+
