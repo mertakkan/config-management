@@ -74,9 +74,22 @@ Headers: x-api-token: your-api-token
 ```
 ### Admin API
 
-### Authentication
+```
+GET /api/config/admin
+Headers: 
+  Authorization: Bearer <firebase-id-token>
+```
 
+### Authentication
+```
+POST /api/auth/verify
+Headers: 
+  Authorization: Bearer <firebase-id-token>
+```
 ### Health Check
+```
+GET /health
+```
 
 ## 📱 Country-specific Configuration
 
