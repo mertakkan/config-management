@@ -33,6 +33,7 @@ A full-stack configuration management application that allows administrators to 
 
 ## 🏗️ System Architecture
 
+```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │    Vue.js 3     │    │    Node.js      │    │    Firebase     │
 │    Frontend     │◄──►│    Backend      │◄──►│    Services     │
@@ -41,6 +42,7 @@ A full-stack configuration management application that allows administrators to 
 │ • Responsive UI │    │ • Rate Limiting │    │ • Firestore     │
 │ • State Mgmt    │    │ • Validation    │    │ • Security      │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
+```
 
 ## 🛠️ Technology Stack
 
