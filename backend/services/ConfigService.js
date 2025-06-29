@@ -1,4 +1,5 @@
 import { db } from "../server.js";
+import { AppError } from "../utils/errorHandler.js";
 
 class ConfigService {
   constructor() {
@@ -6,6 +7,19 @@ class ConfigService {
     this.CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
     this.CONFIG_COLLECTION = "config";
     this.CONFIG_DOC = "app_config";
+    this.isInitialized = false;
+  }
+
+  async initialize() {
+    if (this.isInitialized) return;
+
+    try {
+      // Verify database connection
+      await db.collection("_health").limit(1).get();
+      this.isInitialized = true;
+    } catch (error) {
+      throw new AppError("Database connection failed", 500);
+    }
   }
 
   getDefaultConfig() {
@@ -60,13 +74,14 @@ class ConfigService {
       return cached.data;
     }
 
+    this.configCache.delete(cacheKey); // Clean expired cache
     return null;
   }
 
   setCache(data) {
     const cacheKey = this.getCacheKey();
     this.configCache.set(cacheKey, {
-      data,
+      data: { ...data }, // Deep copy to prevent mutations
       expiry: Date.now() + this.CACHE_DURATION,
     });
   }
@@ -76,6 +91,8 @@ class ConfigService {
   }
 
   async getConfig() {
+    await this.initialize();
+
     try {
       // Try cache first for high traffic optimization
       const cachedConfig = this.getFromCache();
@@ -91,6 +108,8 @@ class ConfigService {
       let config;
       if (!configDoc.exists) {
         config = this.getDefaultConfig();
+        // Save default config for future use
+        await this.saveConfigToDb(config);
       } else {
         config = configDoc.data();
       }
@@ -98,16 +117,25 @@ class ConfigService {
       this.setCache(config);
       return config;
     } catch (error) {
-      throw new Error(`Failed to fetch configuration: ${error.message}`);
+      throw new AppError(
+        `Failed to fetch configuration: ${error.message}`,
+        500
+      );
     }
   }
 
-  async updateConfig(configData, userId, userEmail) {
-    try {
-      const configRef = db
-        .collection(this.CONFIG_COLLECTION)
-        .doc(this.CONFIG_DOC);
+  async saveConfigToDb(configData) {
+    const configRef = db
+      .collection(this.CONFIG_COLLECTION)
+      .doc(this.CONFIG_DOC);
 
+    await configRef.set(configData);
+  }
+
+  async updateConfig(configData, userId, userEmail) {
+    await this.initialize();
+
+    try {
       const updatedConfig = {
         ...configData,
         lastModified: Date.now(),
@@ -115,21 +143,24 @@ class ConfigService {
         lastModifiedByEmail: userEmail,
       };
 
-      await configRef.set(updatedConfig);
+      await this.saveConfigToDb(updatedConfig);
       this.clearCache();
 
       return updatedConfig;
     } catch (error) {
-      throw new Error(`Failed to update configuration: ${error.message}`);
+      throw new AppError(
+        `Failed to update configuration: ${error.message}`,
+        500
+      );
     }
   }
 
   async checkConcurrentModification(clientLastModified) {
-    try {
-      if (!clientLastModified) {
-        return false;
-      }
+    if (!clientLastModified) {
+      return false;
+    }
 
+    try {
       const configRef = db
         .collection(this.CONFIG_COLLECTION)
         .doc(this.CONFIG_DOC);
@@ -144,8 +175,9 @@ class ConfigService {
 
       return false;
     } catch (error) {
-      throw new Error(
-        `Failed to check concurrent modifications: ${error.message}`
+      throw new AppError(
+        `Failed to check concurrent modifications: ${error.message}`,
+        500
       );
     }
   }
@@ -168,7 +200,8 @@ class ConfigService {
       if (this.isConfigParameter(value)) {
         // Check for country-specific values
         const countryValue = country && value.countryValues?.[country];
-        mobileConfig[key] = countryValue || value.value;
+        mobileConfig[key] =
+          countryValue !== undefined ? countryValue : value.value;
       } else {
         mobileConfig[key] = value;
       }

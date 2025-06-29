@@ -1,30 +1,20 @@
+import { createErrorResponse } from "../utils/errorHandler.js";
+
 export const errorHandler = (err, req, res, next) => {
-  console.error("Server Error:", err.stack);
+  console.error("Server Error:", {
+    message: err.message,
+    stack: err.stack,
+    url: req.originalUrl,
+    method: req.method,
+    timestamp: new Date().toISOString(),
+  });
 
-  // Default error response
-  let error = {
-    message: err.message || "Internal server error",
-    status: err.status || 500,
-  };
-
-  // Handle specific error types
-  if (err.name === "ValidationError") {
-    error.status = 400;
-    error.message = "Validation failed";
-  }
-
-  if (err.name === "UnauthorizedError") {
-    error.status = 401;
-    error.message = "Unauthorized";
-  }
-
-  // Don't leak error details in production
+  const statusCode = err.statusCode || 500;
   const isDevelopment = process.env.NODE_ENV === "development";
 
-  res.status(error.status).json({
-    error: error.message,
-    ...(isDevelopment && { stack: err.stack }),
-  });
+  const errorResponse = createErrorResponse(err, isDevelopment);
+
+  res.status(statusCode).json(errorResponse);
 };
 
 export const notFoundHandler = (req, res, next) => {

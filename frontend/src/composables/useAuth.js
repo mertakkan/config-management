@@ -11,6 +11,22 @@ export function useAuth() {
   const loading = ref(false)
   const error = ref(null)
 
+  const getFirebaseErrorMessage = (errorCode) => {
+    switch (errorCode) {
+      case 'auth/user-not-found':
+      case 'auth/wrong-password':
+      case 'auth/invalid-credential':
+      case 'auth/invalid-email':
+        return 'Incorrect email or password'
+      case 'auth/too-many-requests':
+        return 'Too many failed attempts. Please try again later'
+      case 'auth/network-request-failed':
+        return 'Network error. Please check your connection'
+      default:
+        return 'Incorrect email or password'
+    }
+  }
+
   const signIn = async (email, password) => {
     loading.value = true
     error.value = null
@@ -27,7 +43,7 @@ export function useAuth() {
 
       router.push('/')
     } catch (err) {
-      error.value = err.message
+      error.value = getFirebaseErrorMessage(err.code)
     } finally {
       loading.value = false
     }
@@ -39,7 +55,7 @@ export function useAuth() {
       authStore.logout()
       router.push('/signin')
     } catch (err) {
-      error.value = err.message
+      error.value = getFirebaseErrorMessage(err.code)
     }
   }
 

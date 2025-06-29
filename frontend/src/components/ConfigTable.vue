@@ -145,7 +145,6 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { formatDate } from '@/utils/dateFormatter'
 
 const props = defineProps({
   config: {
@@ -163,9 +162,40 @@ const newParameter = ref({
   description: '',
 })
 
+// Fixed date formatting
+const formatDate = (date) => {
+  if (!date) return 'N/A'
+
+  try {
+    // Handle both timestamp numbers and date strings
+    const dateObj = typeof date === 'number' ? new Date(date) : new Date(date)
+
+    return dateObj.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    // eslint-disable-next-line no-unused-vars
+  } catch (error) {
+    console.warn('Invalid date format:', date)
+    return 'Invalid Date'
+  }
+}
+
+// Rest of the component remains the same...
 const configItems = computed(() => {
   const items = {}
   Object.entries(props.config).forEach(([key, value]) => {
+    // Skip metadata fields
+    if (
+      key.startsWith('_') ||
+      ['lastModified', 'lastModifiedBy', 'lastModifiedByEmail'].includes(key)
+    ) {
+      return
+    }
+
     if (typeof value === 'object' && value !== null) {
       items[key] = value
     } else {
