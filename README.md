@@ -68,10 +68,10 @@ A full-stack configuration management application that allows administrators to 
 ## 🚦 API Endpoints
 
 ### Mobile API
-
+```
 GET /api/config/mobile?country=TR
 Headers: x-api-token: your-api-token
-
+```
 ### Admin API
 
 ### Authentication
@@ -128,14 +128,16 @@ git clone <repository-url>
 cd config-management
 
 2. Install dependencies
-   Install backend dependencies
-   cd backend
-   npm install
-
+Install backend dependencies
+```
+cd backend
+npm install
+```
+```
 Install frontend dependencies
 cd ../frontend
 npm install
-
+```
 3. Firebase Configuration
 
 Create a Firebase project at console.firebase.google.com
@@ -144,18 +146,23 @@ Enable Firestore Database
 Generate a service account key and save as backend/firebase-service-account.json
 
 4. Environment Variables
-   Backend (backend/.env):
-   PORT=3000
-   NODE_ENV=development
-   FIREBASE_PROJECT_ID=your-project-id
-   API_TOKEN=your-secure-api-token-here
-   CORS_ORIGIN=http://localhost:5173
+Backend (backend/.env):
+```
+PORT=3000
+NODE_ENV=development
+FIREBASE_PROJECT_ID=your-project-id
+API_TOKEN=your-secure-api-token-here
+CORS_ORIGIN=http://localhost:5173
+```
 
 Production only (for deployment)
+```
 FIREBASE_CLIENT_EMAIL=your-client-email
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
 
 Frontend (frontend/.env):
+```
 VITE_FIREBASE_API_KEY=your-api-key
 VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=your-project-id
@@ -163,6 +170,7 @@ VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
 VITE_FIREBASE_APP_ID=your-app-id
 VITE_API_BASE_URL=http://localhost:3000/api
+```
 
 5. Create Firebase User
 
@@ -172,23 +180,23 @@ Add a new user with email/password
 6. Run the application
 
 Start backend (from backend directory)
-
+```
 npm run dev
-
+```
 Start frontend (from frontend directory)
-
+```
 npm run dev
-
+```
 ### 📖 Usage Guide
 
 ### Admin Panel Usage
 
-Sign In: Use your Firebase credentials to access the admin panel
-View Configurations: See all current configuration parameters
-Edit Parameters: Click "Edit" to modify values and descriptions
-Add Parameters: Use the bottom form to add new configuration keys
-Manage Countries: Click "Countries" to set country-specific values
-Delete Parameters: Remove unwanted configuration keys
+**Sign In**: Use your Firebase credentials to access the admin panel
+**View Configurations**: See all current configuration parameters
+**Edit Parameters**: Click "Edit" to modify values and descriptions
+**Add Parameters**: Use the bottom form to add new configuration keys
+**Manage Countries**: Click "Countries" to set country-specific values
+**Delete Parameters**: Remove unwanted configuration keys
 
 ## 📊 Code Architecture & Patterns
 
@@ -204,10 +212,10 @@ Delete Parameters: Remove unwanted configuration keys
 
 ### Composition API: Vue 3 composables for reusable logic
 
-Store Pattern: Pinia for centralized state management
-Component Architecture: Reusable, single-responsibility components
-Service Layer: API abstraction with retry logic
-Observer Pattern: Reactive state updates
+**Store Pattern**: Pinia for centralized state management
+**Component Architecture**: Reusable, single-responsibility components
+**Service Layer**: API abstraction with retry logic
+**Observer Pattern**: Reactive state updates
 
 ### Design Principles
 
