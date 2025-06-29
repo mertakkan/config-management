@@ -19,7 +19,7 @@
         <tbody class="divide-y divide-gray-700">
           <tr v-for="(item, key) in sortedConfig" :key="key" class="hover:bg-gray-700">
             <td class="px-6 py-4 text-sm text-white">{{ key }}</td>
-            <td class="px-6 py-4 text-sm text-white">{{ item.value }}</td>
+            <td class="px-6 py-4 text-sm text-white">{{ formatValue(item.value) }}</td>
             <td class="px-6 py-4 text-sm text-gray-300">{{ item.description }}</td>
             <td class="px-6 py-4 text-sm text-gray-300">{{ formatDate(item.createDate) }}</td>
             <td class="px-6 py-4 text-sm text-gray-300">
@@ -69,7 +69,7 @@
           </div>
           <div>
             <span class="text-sm text-gray-400">Value:</span>
-            <span class="text-white ml-2">{{ item.value }}</span>
+            <span class="text-white ml-2">{{ formatValue(item.value) }}</span>
           </div>
           <div>
             <span class="text-sm text-gray-400">Description:</span>
@@ -117,16 +117,19 @@
           v-model="newParameter.key"
           placeholder="New Parameter"
           class="px-3 py-2 bg-gray-600 text-white rounded border border-gray-500 focus:border-blue-500 focus:outline-none"
+          @keyup.enter="addParameter"
         />
         <input
           v-model="newParameter.value"
           placeholder="Value"
           class="px-3 py-2 bg-gray-600 text-white rounded border border-gray-500 focus:border-blue-500 focus:outline-none"
+          @keyup.enter="addParameter"
         />
         <input
           v-model="newParameter.description"
           placeholder="New Description"
           class="px-3 py-2 bg-gray-600 text-white rounded border border-gray-500 focus:border-blue-500 focus:outline-none"
+          @keyup.enter="addParameter"
         />
         <button
           @click="addParameter"
@@ -142,9 +145,13 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { formatDate } from '@/utils/dateFormatter'
 
 const props = defineProps({
-  config: Object,
+  config: {
+    type: Object,
+    required: true,
+  },
 })
 
 const emit = defineEmits(['update', 'edit', 'delete', 'manage-countries'])
@@ -186,11 +193,23 @@ const sortedConfig = computed(() => {
 })
 
 const canAddParameter = computed(() => {
-  return newParameter.value.key && newParameter.value.value && newParameter.value.description
+  return (
+    newParameter.value.key &&
+    newParameter.value.value &&
+    newParameter.value.description &&
+    !Object.prototype.hasOwnProperty.call(props.config, newParameter.value.key)
+  )
 })
 
 const getCountryCount = (item) => {
   return Object.keys(item.countryValues || {}).length
+}
+
+const formatValue = (value) => {
+  if (typeof value === 'string' && value.length > 50) {
+    return value.substring(0, 50) + '...'
+  }
+  return value
 }
 
 const toggleSort = () => {
@@ -234,17 +253,6 @@ const deleteParameter = (key) => {
     delete updatedConfig[key]
     emit('delete', updatedConfig)
   }
-}
-
-const formatDate = (date) => {
-  if (!date) return 'N/A'
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 const getDefaultDescription = (key) => {
