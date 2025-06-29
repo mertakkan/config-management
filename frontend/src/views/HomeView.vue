@@ -80,6 +80,7 @@
           @update="handleUpdate"
           @edit="handleEdit"
           @delete="handleDelete"
+          @manage-countries="handleManageCountries"
         />
       </div>
     </main>
@@ -91,6 +92,16 @@
       :is-new-parameter="false"
       @close="closeEditModal"
       @save="saveParameter"
+    />
+
+    <!-- Country Management Modal -->
+    <CountryModal
+      :show="showCountryModal"
+      :parameter-key="countryParameter?.key"
+      :default-value="countryParameter?.value"
+      :country-values-data="countryParameter?.countryValues"
+      @close="closeCountryModal"
+      @save="saveCountryValues"
     />
 
     <!-- Conflict Resolution Modal -->
@@ -124,6 +135,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useConfig } from '@/composables/useConfig'
 import ConfigTable from '@/components/ConfigTable.vue'
 import EditModal from '@/components/EditModal.vue'
+import CountryModal from '@/components/CountryModal.vue'
 import Logo from '@/components/CompanyLogo.vue'
 
 const authStore = useAuthStore()
@@ -132,8 +144,10 @@ const { config, loading, error, fetchConfig, updateConfig } = useConfig()
 
 const showUserMenu = ref(false)
 const showEditModal = ref(false)
+const showCountryModal = ref(false)
 const showConflictModal = ref(false)
 const editingParameter = ref(null)
+const countryParameter = ref(null)
 const userMenuRef = ref(null)
 
 onMounted(async () => {
@@ -180,9 +194,19 @@ const handleDelete = async (updatedConfig) => {
   }
 }
 
+const handleManageCountries = (parameter) => {
+  countryParameter.value = parameter
+  showCountryModal.value = true
+}
+
 const closeEditModal = () => {
   showEditModal.value = false
   editingParameter.value = null
+}
+
+const closeCountryModal = () => {
+  showCountryModal.value = false
+  countryParameter.value = null
 }
 
 const saveParameter = async (parameterData) => {
@@ -193,6 +217,7 @@ const saveParameter = async (parameterData) => {
         value: parameterData.value,
         description: parameterData.description,
         createDate: parameterData.createDate || Date.now(),
+        countryValues: parameterData.countryValues || {},
       },
     }
     await updateConfig(updatedConfig)
@@ -201,6 +226,25 @@ const saveParameter = async (parameterData) => {
     if (err.response?.status === 409) {
       showConflictModal.value = true
       closeEditModal()
+    }
+  }
+}
+
+const saveCountryValues = async (countryValues) => {
+  try {
+    const updatedConfig = {
+      ...config.value,
+      [countryParameter.value.key]: {
+        ...config.value[countryParameter.value.key],
+        countryValues: countryValues,
+      },
+    }
+    await updateConfig(updatedConfig)
+    closeCountryModal()
+  } catch (err) {
+    if (err.response?.status === 409) {
+      showConflictModal.value = true
+      closeCountryModal()
     }
   }
 }

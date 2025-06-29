@@ -8,6 +8,7 @@ const router = express.Router();
 // Get config for mobile apps (requires API token)
 router.get("/mobile", verifyApiToken, async (req, res) => {
   try {
+    const country = req.query.country; // Get country from query parameter
     const configDoc = await db.collection("config").doc("app_config").get();
 
     if (!configDoc.exists) {
@@ -25,7 +26,7 @@ router.get("/mobile", verifyApiToken, async (req, res) => {
 
     const config = configDoc.data();
 
-    // Convert to simple key-value pairs for mobile
+    // Convert to simple key-value pairs for mobile with country-specific values
     const mobileConfig = {};
     Object.entries(config).forEach(([key, value]) => {
       if (
@@ -38,7 +39,12 @@ router.get("/mobile", verifyApiToken, async (req, res) => {
       }
 
       if (typeof value === "object" && value !== null && "value" in value) {
-        mobileConfig[key] = value.value;
+        // Check if there are country-specific values
+        if (value.countryValues && country && value.countryValues[country]) {
+          mobileConfig[key] = value.countryValues[country];
+        } else {
+          mobileConfig[key] = value.value;
+        }
       } else {
         mobileConfig[key] = value;
       }
@@ -62,36 +68,43 @@ router.get("/admin", verifyFirebaseToken, async (req, res) => {
           value: 5,
           description: "Maximum free usage allowed",
           createDate: Date.now(),
+          countryValues: {},
         },
         supportEmail: {
           value: "support@codeway.co",
           description: "Support contact email",
           createDate: Date.now(),
+          countryValues: {},
         },
         privacyPage: {
           value: "https://codeway.com/privacy_en.html",
           description: "Privacy policy page URL",
           createDate: Date.now(),
+          countryValues: {},
         },
         minimumVersion: {
           value: "1.0",
           description: "Minimum required version of the app",
           createDate: Date.now(),
+          countryValues: {},
         },
         latestVersion: {
           value: "2.1",
           description: "Latest version of the app",
           createDate: Date.now(),
+          countryValues: {},
         },
         compressionQuality: {
           value: 0.7,
           description: "Image compression quality",
           createDate: Date.now(),
+          countryValues: {},
         },
         btnText: {
           value: "Try now!",
           description: "Button text for call to action",
           createDate: Date.now(),
+          countryValues: {},
         },
       };
 
