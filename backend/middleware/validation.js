@@ -6,13 +6,12 @@ export const validateConfigUpdate = [
       throw new Error("Request body must be an object");
     }
 
-    // Validate each config parameter
     Object.entries(value).forEach(([key, val]) => {
       if (
         key.startsWith("_") ||
         ["lastModified", "lastModifiedBy", "lastModifiedByEmail"].includes(key)
       ) {
-        return; // Skip metadata
+        return;
       }
 
       if (typeof val === "object" && val !== null) {

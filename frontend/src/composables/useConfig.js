@@ -10,7 +10,6 @@ export function useConfig() {
 
   const userToken = computed(() => authStore.user?.token)
 
-  // Watch for token changes and update API service
   watch(
     userToken,
     (newToken) => {
@@ -25,7 +24,7 @@ export function useConfig() {
     const errorMessage = err.response?.data?.error || 'Operation failed'
     error.value = errorMessage
 
-    // Handle auth errors
+    // handle 401 errors by logging out user automatically
     if (err.response?.status === 401) {
       authStore.logout()
     }
@@ -34,6 +33,7 @@ export function useConfig() {
   }
 
   const fetchConfig = async () => {
+    // prevent multiple concurrent api calls
     if (loading.value) return // Prevent concurrent requests
 
     loading.value = true

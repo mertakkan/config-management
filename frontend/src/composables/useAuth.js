@@ -11,6 +11,7 @@ export function useAuth() {
   const loading = ref(false)
   const error = ref(null)
 
+  // convert firebase error codes to user-friendly messages
   const getFirebaseErrorMessage = (errorCode) => {
     switch (errorCode) {
       case 'auth/user-not-found':
@@ -59,6 +60,7 @@ export function useAuth() {
     }
   }
 
+  // listen for auth state changes and update store accordingly
   const initAuth = () => {
     onAuthStateChanged(auth, async (user) => {
       if (user) {

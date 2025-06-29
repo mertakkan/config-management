@@ -24,7 +24,6 @@ class ApiService {
     // Request interceptor
     this.client.interceptors.request.use(
       (config) => {
-        // Add request timestamp for monitoring
         config.metadata = { startTime: Date.now() }
         return config
       },
@@ -34,7 +33,6 @@ class ApiService {
     // Response interceptor
     this.client.interceptors.response.use(
       (response) => {
-        // Log response time in development
         if (import.meta.env.DEV) {
           const duration = Date.now() - response.config.metadata.startTime
           console.log(
@@ -50,18 +48,18 @@ class ApiService {
   async handleError(error) {
     const { config, response } = error
 
-    // Don't retry client errors (4xx)
+    // don't retry client errors, only server errors and network issues
     if (response?.status >= 400 && response?.status < 500) {
       return Promise.reject(error)
     }
 
-    // Retry logic for server errors and network issues
+    // retry logic for server errors and network issues
     const retryCount = config.__retryCount || 0
 
     if (retryCount < this.retryConfig.maxRetries) {
       config.__retryCount = retryCount + 1
 
-      // Exponential backoff with jitter
+      // exponential backoff with jitter for retry logic
       const delay = Math.min(
         this.retryConfig.baseDelay * Math.pow(2, retryCount) + Math.random() * 1000,
         this.retryConfig.maxDelay,

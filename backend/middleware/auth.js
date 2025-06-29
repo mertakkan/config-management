@@ -2,6 +2,7 @@ import { adminAuth } from "../server.js";
 
 export const verifyFirebaseToken = async (req, res, next) => {
   try {
+    // extract bearer token from authorization header
     const token = req.headers.authorization?.replace("Bearer ", "");
 
     if (!token) {
@@ -16,7 +17,7 @@ export const verifyFirebaseToken = async (req, res, next) => {
     res.status(401).json({ error: "Invalid token" });
   }
 };
-
+// verify mobile api access with predefined token
 export const verifyApiToken = (req, res, next) => {
   const token = req.headers["x-api-token"];
 

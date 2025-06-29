@@ -14,7 +14,6 @@ import ConfigService from "../services/ConfigService.js";
 
 const router = express.Router();
 
-// Get config for mobile apps (requires API token)
 router.get(
   "/mobile",
   mobileApiRateLimit,
@@ -31,7 +30,6 @@ router.get(
   })
 );
 
-// Get config for admin panel
 router.get(
   "/admin",
   adminRateLimit,
@@ -42,7 +40,6 @@ router.get(
   })
 );
 
-// Update config (requires Firebase auth)
 router.put(
   "/admin",
   adminRateLimit,
@@ -52,12 +49,13 @@ router.put(
   handleAsyncError(async (req, res) => {
     const clientLastModified = req.body.lastModified;
 
-    // Check for concurrent modifications
+    // check for concurrent modifications before updating
     const hasConflict = await ConfigService.checkConcurrentModification(
       clientLastModified
     );
 
     if (hasConflict) {
+      // throw specific error for concurrent modification detection
       throw new AppError(
         "Configuration has been modified by another user. Please refresh and try again.",
         409,

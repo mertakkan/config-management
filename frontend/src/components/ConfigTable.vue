@@ -162,12 +162,11 @@ const newParameter = ref({
   description: '',
 })
 
-// Fixed date formatting
 const formatDate = (date) => {
   if (!date) return 'N/A'
 
   try {
-    // Handle both timestamp numbers and date strings
+    // handle both timestamp numbers and date strings for compatibility
     const dateObj = typeof date === 'number' ? new Date(date) : new Date(date)
 
     return dateObj.toLocaleDateString('en-GB', {
@@ -184,11 +183,10 @@ const formatDate = (date) => {
   }
 }
 
-// Rest of the component remains the same...
 const configItems = computed(() => {
   const items = {}
   Object.entries(props.config).forEach(([key, value]) => {
-    // Skip metadata fields
+    // skip internal metadata when displaying config parameters
     if (
       key.startsWith('_') ||
       ['lastModified', 'lastModifiedBy', 'lastModifiedByEmail'].includes(key)
@@ -199,7 +197,6 @@ const configItems = computed(() => {
     if (typeof value === 'object' && value !== null) {
       items[key] = value
     } else {
-      // Convert simple values to object format
       items[key] = {
         value: value,
         description: getDefaultDescription(key),

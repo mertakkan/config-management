@@ -77,7 +77,7 @@ import ConflictModal from '@/components/ConflictModal.vue'
 const { logout } = useAuth()
 const { config, loading, error, fetchConfig, updateConfig } = useConfig()
 
-// Modal states
+// centralized modal state management
 const modals = {
   edit: ref(false),
   country: ref(false),
@@ -95,11 +95,11 @@ onMounted(async () => {
   await fetchConfig()
 })
 
-// Event handlers with error handling
 const handleUpdate = async (updatedConfig) => {
   try {
     await updateConfig(updatedConfig)
   } catch (err) {
+    // handle concurrent modification conflicts
     if (err.response?.status === 409) {
       showConflictModal.value = true
     }
@@ -130,13 +130,11 @@ const handleLogout = async () => {
   await logout()
 }
 
-// Modal management
 const closeModal = (modalName) => {
   if (modals[modalName]) {
     modals[modalName].value = false
   }
 
-  // Reset related data
   if (modalName === 'edit') {
     editingParameter.value = null
   } else if (modalName === 'country') {

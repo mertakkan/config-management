@@ -3,6 +3,7 @@ import { AppError } from "../utils/errorHandler.js";
 
 class ConfigService {
   constructor() {
+    // in-memory cache with ttl to reduce firestore reads under high traffic
     this.configCache = new Map();
     this.CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
     this.CONFIG_COLLECTION = "config";
@@ -14,7 +15,6 @@ class ConfigService {
     if (this.isInitialized) return;
 
     try {
-      // Verify database connection
       await db.collection("_health").limit(1).get();
       this.isInitialized = true;
     } catch (error) {
@@ -154,7 +154,7 @@ class ConfigService {
       );
     }
   }
-
+  // prevent race conditions during concurrent config updates
   async checkConcurrentModification(clientLastModified) {
     if (!clientLastModified) {
       return false;
@@ -182,6 +182,7 @@ class ConfigService {
     }
   }
 
+  // transform admin config format to mobile-friendly response
   transformToMobileConfig(config, country = null) {
     const mobileConfig = {};
     const metadataKeys = new Set([

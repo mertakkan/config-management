@@ -20,7 +20,7 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Initialize Firebase Admin - Singleton pattern (Fixed circular dependency)
+// singleton pattern to prevent firebase re-initialization issues during development
 class FirebaseService {
   static instance = null;
 
@@ -38,6 +38,7 @@ class FirebaseService {
 
   initializeFirebase() {
     try {
+      // handle both production (env vars) and development (service account file) configurations
       if (process.env.NODE_ENV === "production") {
         this.app = initializeApp({
           credential: cert({
@@ -84,7 +85,7 @@ export const adminAuth = firebaseService.getAuth();
 const server = express();
 const PORT = process.env.PORT || 3000;
 
-// Trust proxy for rate limiting
+// trust proxy for accurate client ip detection in rate limiting
 server.set("trust proxy", 1);
 
 // Middleware
@@ -126,7 +127,7 @@ server.get("/health", (req, res) => {
 server.use(notFoundHandler);
 server.use(errorHandler);
 
-// Graceful shutdown
+// graceful shutdown handler for production deployments
 const gracefulShutdown = () => {
   console.log("SIGTERM received, shutting down gracefully");
   server.close(() => {
