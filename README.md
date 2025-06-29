@@ -204,36 +204,36 @@ npm run dev
 
 ### Admin Panel Usage
 
-**Sign In**: Use your Firebase credentials to access the admin panel
-**View Configurations**: See all current configuration parameters
-**Edit Parameters**: Click "Edit" to modify values and descriptions
-**Add Parameters**: Use the bottom form to add new configuration keys
-**Manage Countries**: Click "Countries" to set country-specific values
-**Delete Parameters**: Remove unwanted configuration keys
+- **Sign In**: Use your Firebase credentials to access the admin panel
+- **View Configurations**: See all current configuration parameters
+- **Edit Parameters**: Click "Edit" to modify values and descriptions
+- **Add Parameters**: Use the bottom form to add new configuration keys
+- **Manage Countries**: Click "Countries" to set country-specific values
+- **Delete Parameters**: Remove unwanted configuration keys
 
 ## 📊 Code Architecture & Patterns
 
 ## Backend Architecture
 
-**Singleton Pattern**: Firebase service initialization
-**Service Layer**: Centralized business logic in ConfigService
-**Middleware Pattern**: Authentication, validation, and error handling
-**Repository Pattern**: Database abstraction through Firestore
-**Factory Pattern**: Error response creation
+- **Singleton Pattern**: Firebase service initialization
+- **Service Layer**: Centralized business logic in ConfigService
+- **Middleware Pattern**: Authentication, validation, and error handling
+- **Repository Pattern**: Database abstraction through Firestore
+- **Factory Pattern**: Error response creation
 
 ## Frontend Architecture
 
 ### Composition API: Vue 3 composables for reusable logic
 
-**Store Pattern**: Pinia for centralized state management
-**Component Architecture**: Reusable, single-responsibility components
-**Service Layer**: API abstraction with retry logic
-**Observer Pattern**: Reactive state updates
+- **Store Pattern**: Pinia for centralized state management
+- **Component Architecture**: Reusable, single-responsibility components
+- **Service Layer**: API abstraction with retry logic
+- **Observer Pattern**: Reactive state updates
 
 ### Design Principles
 
-**Separation of Concerns**: Clear separation between layers
-**DRY Principle**: Reusable components and utilities
-**Single Responsibility**: Each module has one clear purpose
-**Error Handling**: Comprehensive error boundaries and recovery
-**Security First**: Authentication and authorization at every layer
+- **Separation of Concerns**: Clear separation between layers
+- **DRY Principle**: Reusable components and utilities
+- **Single Responsibility**: Each module has one clear purpose
+- **Error Handling**: Comprehensive error boundaries and recovery
+- **Security First**: Authentication and authorization at every layer
