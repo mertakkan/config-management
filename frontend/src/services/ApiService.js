@@ -3,10 +3,12 @@ import axios from 'axios'
 class ApiService {
   constructor() {
     this.baseURL = import.meta.env.VITE_API_BASE_URL
-    this.retryCount = 3
-    this.retryDelay = 1000
+    this.retryConfig = {
+      maxRetries: 3,
+      baseDelay: 1000,
+      maxDelay: 5000,
+    }
 
-    // Create axios instance with default config
     this.client = axios.create({
       baseURL: this.baseURL,
       timeout: 10000,
@@ -15,9 +17,32 @@ class ApiService {
       },
     })
 
-    // Add response interceptor for error handling
+    this.setupInterceptors()
+  }
+
+  setupInterceptors() {
+    // Request interceptor
+    this.client.interceptors.request.use(
+      (config) => {
+        // Add request timestamp for monitoring
+        config.metadata = { startTime: Date.now() }
+        return config
+      },
+      (error) => Promise.reject(error),
+    )
+
+    // Response interceptor
     this.client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        // Log response time in development
+        if (import.meta.env.DEV) {
+          const duration = Date.now() - response.config.metadata.startTime
+          console.log(
+            `API ${response.config.method?.toUpperCase()} ${response.config.url}: ${duration}ms`,
+          )
+        }
+        return response
+      },
       (error) => this.handleError(error),
     )
   }
@@ -25,27 +50,32 @@ class ApiService {
   async handleError(error) {
     const { config, response } = error
 
-    // Don't retry if it's a 4xx error (client error)
+    // Don't retry client errors (4xx)
     if (response?.status >= 400 && response?.status < 500) {
-      throw error
+      return Promise.reject(error)
     }
 
-    // Retry logic for 5xx errors and network errors
-    if (!config.__retryCount) {
-      config.__retryCount = 0
-    }
+    // Retry logic for server errors and network issues
+    const retryCount = config.__retryCount || 0
 
-    if (config.__retryCount < this.retryCount) {
-      config.__retryCount++
+    if (retryCount < this.retryConfig.maxRetries) {
+      config.__retryCount = retryCount + 1
 
-      // Exponential backoff
-      const delay = this.retryDelay * Math.pow(2, config.__retryCount - 1)
-      await new Promise((resolve) => setTimeout(resolve, delay))
+      // Exponential backoff with jitter
+      const delay = Math.min(
+        this.retryConfig.baseDelay * Math.pow(2, retryCount) + Math.random() * 1000,
+        this.retryConfig.maxDelay,
+      )
 
+      await this.delay(delay)
       return this.client(config)
     }
 
-    throw error
+    return Promise.reject(error)
+  }
+
+  delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms))
   }
 
   setAuthToken(token) {
@@ -56,24 +86,37 @@ class ApiService {
     }
   }
 
-  async get(url, config = {}) {
-    const response = await this.client.get(url, config)
+  async request(method, url, data = null, config = {}) {
+    const requestConfig = {
+      method,
+      url,
+      ...config,
+    }
+
+    if (data && ['post', 'put', 'patch'].includes(method.toLowerCase())) {
+      requestConfig.data = data
+    } else if (data && method.toLowerCase() === 'get') {
+      requestConfig.params = data
+    }
+
+    const response = await this.client(requestConfig)
     return response.data
+  }
+
+  async get(url, params = null, config = {}) {
+    return this.request('GET', url, params, config)
   }
 
   async post(url, data, config = {}) {
-    const response = await this.client.post(url, data, config)
-    return response.data
+    return this.request('POST', url, data, config)
   }
 
   async put(url, data, config = {}) {
-    const response = await this.client.put(url, data, config)
-    return response.data
+    return this.request('PUT', url, data, config)
   }
 
   async delete(url, config = {}) {
-    const response = await this.client.delete(url, config)
-    return response.data
+    return this.request('DELETE', url, null, config)
   }
 }
 

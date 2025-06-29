@@ -13,40 +13,73 @@ import { dirname, join } from "path";
 import configRoutes from "./routes/config.js";
 import authRoutes from "./routes/auth.js";
 import { authRateLimit } from "./middleware/rateLimiter.js";
+import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Initialize Firebase Admin with service account
-let app;
-try {
-  if (process.env.NODE_ENV === "production") {
-    app = initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      }),
-      projectId: process.env.FIREBASE_PROJECT_ID,
-    });
-  } else {
-    const serviceAccount = JSON.parse(
-      readFileSync(join(__dirname, "firebase-service-account.json"), "utf8")
-    );
-    app = initializeApp({
-      credential: cert(serviceAccount),
-      projectId: process.env.FIREBASE_PROJECT_ID,
-    });
+// Initialize Firebase Admin - Singleton pattern (Fixed circular dependency)
+class FirebaseService {
+  static instance = null;
+
+  constructor() {
+    if (FirebaseService.instance) {
+      return FirebaseService.instance;
+    }
+
+    this.app = null;
+    this.db = null;
+    this.auth = null;
+    this.initializeFirebase();
+    FirebaseService.instance = this;
   }
-} catch (error) {
-  console.error("Failed to initialize Firebase:", error);
-  process.exit(1);
+
+  initializeFirebase() {
+    try {
+      if (process.env.NODE_ENV === "production") {
+        this.app = initializeApp({
+          credential: cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+          }),
+          projectId: process.env.FIREBASE_PROJECT_ID,
+        });
+      } else {
+        const serviceAccount = JSON.parse(
+          readFileSync(join(__dirname, "firebase-service-account.json"), "utf8")
+        );
+        this.app = initializeApp({
+          credential: cert(serviceAccount),
+          projectId: process.env.FIREBASE_PROJECT_ID,
+        });
+      }
+
+      this.db = getFirestore(this.app);
+      this.auth = getAuth(this.app);
+    } catch (error) {
+      console.error("Failed to initialize Firebase:", error);
+      process.exit(1);
+    }
+  }
+
+  getDB() {
+    return this.db;
+  }
+
+  getAuth() {
+    return this.auth;
+  }
 }
 
-export const db = getFirestore(app);
-export const adminAuth = getAuth(app);
+// Create singleton instance
+const firebaseService = new FirebaseService();
+
+// Export instances
+export const db = firebaseService.getDB();
+export const adminAuth = firebaseService.getAuth();
 
 const server = express();
 const PORT = process.env.PORT || 3000;
@@ -89,34 +122,21 @@ server.get("/health", (req, res) => {
   });
 });
 
-// 404 handler - Fixed the route pattern
-server.use((req, res, next) => {
-  res.status(404).json({
-    error: "Route not found",
-    path: req.originalUrl,
-  });
-});
-
-// Error handling middleware
-server.use((err, req, res, next) => {
-  console.error("Server Error:", err.stack);
-
-  // Don't leak error details in production
-  const isDevelopment = process.env.NODE_ENV === "development";
-
-  res.status(err.status || 500).json({
-    error: err.message || "Internal server error",
-    ...(isDevelopment && { stack: err.stack }),
-  });
-});
+// Error handling
+server.use(notFoundHandler);
+server.use(errorHandler);
 
 // Graceful shutdown
-process.on("SIGTERM", () => {
+const gracefulShutdown = () => {
   console.log("SIGTERM received, shutting down gracefully");
   server.close(() => {
     console.log("Process terminated");
+    process.exit(0);
   });
-});
+};
+
+process.on("SIGTERM", gracefulShutdown);
+process.on("SIGINT", gracefulShutdown);
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

@@ -2,93 +2,100 @@ import { db } from "../server.js";
 
 class ConfigService {
   constructor() {
-    this.configCache = null;
-    this.cacheExpiry = null;
+    this.configCache = new Map();
     this.CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    this.CONFIG_COLLECTION = "config";
+    this.CONFIG_DOC = "app_config";
   }
 
-  async getDefaultConfig() {
-    return {
-      freeUsageLimit: {
-        value: 5,
-        description: "Maximum free usage allowed",
-        createDate: Date.now(),
-        countryValues: {},
-      },
+  getDefaultConfig() {
+    const defaultParameters = {
+      freeUsageLimit: { value: 5, description: "Maximum free usage allowed" },
       supportEmail: {
         value: "support@codeway.co",
         description: "Support contact email",
-        createDate: Date.now(),
-        countryValues: {},
       },
       privacyPage: {
         value: "https://codeway.com/privacy_en.html",
         description: "Privacy policy page URL",
-        createDate: Date.now(),
-        countryValues: {},
       },
       minimumVersion: {
         value: "1.0",
         description: "Minimum required version of the app",
-        createDate: Date.now(),
-        countryValues: {},
       },
-      latestVersion: {
-        value: "2.1",
-        description: "Latest version of the app",
-        createDate: Date.now(),
-        countryValues: {},
-      },
+      latestVersion: { value: "2.1", description: "Latest version of the app" },
       compressionQuality: {
         value: 0.7,
         description: "Image compression quality",
-        createDate: Date.now(),
-        countryValues: {},
       },
       btnText: {
         value: "Try now!",
         description: "Button text for call to action",
-        createDate: Date.now(),
-        countryValues: {},
       },
     };
+
+    const now = Date.now();
+    return Object.fromEntries(
+      Object.entries(defaultParameters).map(([key, { value, description }]) => [
+        key,
+        {
+          value,
+          description,
+          createDate: now,
+          countryValues: {},
+        },
+      ])
+    );
   }
 
-  async getConfigFromCache() {
-    if (this.configCache && this.cacheExpiry && Date.now() < this.cacheExpiry) {
-      return this.configCache;
+  getCacheKey() {
+    return `${this.CONFIG_COLLECTION}:${this.CONFIG_DOC}`;
+  }
+
+  getFromCache() {
+    const cacheKey = this.getCacheKey();
+    const cached = this.configCache.get(cacheKey);
+
+    if (cached && Date.now() < cached.expiry) {
+      return cached.data;
     }
+
     return null;
   }
 
-  setConfigCache(config) {
-    this.configCache = config;
-    this.cacheExpiry = Date.now() + this.CACHE_DURATION;
+  setCache(data) {
+    const cacheKey = this.getCacheKey();
+    this.configCache.set(cacheKey, {
+      data,
+      expiry: Date.now() + this.CACHE_DURATION,
+    });
   }
 
   clearCache() {
-    this.configCache = null;
-    this.cacheExpiry = null;
+    this.configCache.clear();
   }
 
   async getConfig() {
     try {
       // Try cache first for high traffic optimization
-      const cachedConfig = await this.getConfigFromCache();
+      const cachedConfig = this.getFromCache();
       if (cachedConfig) {
         return cachedConfig;
       }
 
-      const configDoc = await db.collection("config").doc("app_config").get();
+      const configDoc = await db
+        .collection(this.CONFIG_COLLECTION)
+        .doc(this.CONFIG_DOC)
+        .get();
 
+      let config;
       if (!configDoc.exists) {
-        const defaultConfig = await this.getDefaultConfig();
-        this.setConfigCache(defaultConfig);
-        return defaultConfig;
+        config = this.getDefaultConfig();
+      } else {
+        config = configDoc.data();
       }
 
-      const config = configDoc.data();
-      this.setConfigCache(config);
+      this.setCache(config);
       return config;
     } catch (error) {
       throw new Error(`Failed to fetch configuration: ${error.message}`);
@@ -97,7 +104,9 @@ class ConfigService {
 
   async updateConfig(configData, userId, userEmail) {
     try {
-      const configRef = db.collection("config").doc("app_config");
+      const configRef = db
+        .collection(this.CONFIG_COLLECTION)
+        .doc(this.CONFIG_DOC);
 
       const updatedConfig = {
         ...configData,
@@ -107,7 +116,7 @@ class ConfigService {
       };
 
       await configRef.set(updatedConfig);
-      this.clearCache(); // Clear cache after update
+      this.clearCache();
 
       return updatedConfig;
     } catch (error) {
@@ -117,16 +126,22 @@ class ConfigService {
 
   async checkConcurrentModification(clientLastModified) {
     try {
-      const configRef = db.collection("config").doc("app_config");
+      if (!clientLastModified) {
+        return false;
+      }
+
+      const configRef = db
+        .collection(this.CONFIG_COLLECTION)
+        .doc(this.CONFIG_DOC);
       const currentDoc = await configRef.get();
 
       if (
         currentDoc.exists &&
-        clientLastModified &&
         currentDoc.data().lastModified !== clientLastModified
       ) {
-        return true; // Conflict detected
+        return true;
       }
+
       return false;
     } catch (error) {
       throw new Error(
@@ -137,30 +152,33 @@ class ConfigService {
 
   transformToMobileConfig(config, country = null) {
     const mobileConfig = {};
+    const metadataKeys = new Set([
+      "_",
+      "lastModified",
+      "lastModifiedBy",
+      "lastModifiedByEmail",
+    ]);
 
     Object.entries(config).forEach(([key, value]) => {
-      if (
-        key.startsWith("_") ||
-        key === "lastModified" ||
-        key === "lastModifiedBy" ||
-        key === "lastModifiedByEmail"
-      ) {
-        return; // Skip metadata
+      // Skip metadata
+      if (metadataKeys.has(key) || key.startsWith("_")) {
+        return;
       }
 
-      if (typeof value === "object" && value !== null && "value" in value) {
+      if (this.isConfigParameter(value)) {
         // Check for country-specific values
-        if (value.countryValues && country && value.countryValues[country]) {
-          mobileConfig[key] = value.countryValues[country];
-        } else {
-          mobileConfig[key] = value.value;
-        }
+        const countryValue = country && value.countryValues?.[country];
+        mobileConfig[key] = countryValue || value.value;
       } else {
         mobileConfig[key] = value;
       }
     });
 
     return mobileConfig;
+  }
+
+  isConfigParameter(value) {
+    return typeof value === "object" && value !== null && "value" in value;
   }
 }
 

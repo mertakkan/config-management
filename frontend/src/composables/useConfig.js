@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import ApiService from '@/services/ApiService'
 
@@ -8,33 +8,43 @@ export function useConfig() {
   const loading = ref(false)
   const error = ref(null)
 
-  // Set auth token when user changes
   const userToken = computed(() => authStore.user?.token)
-  if (userToken.value) {
-    ApiService.setAuthToken(userToken.value)
+
+  // Watch for token changes and update API service
+  watch(
+    userToken,
+    (newToken) => {
+      if (newToken) {
+        ApiService.setAuthToken(newToken)
+      }
+    },
+    { immediate: true },
+  )
+
+  const handleApiError = (err) => {
+    const errorMessage = err.response?.data?.error || 'Operation failed'
+    error.value = errorMessage
+
+    // Handle auth errors
+    if (err.response?.status === 401) {
+      authStore.logout()
+    }
+
+    return errorMessage
   }
 
   const fetchConfig = async () => {
+    if (loading.value) return // Prevent concurrent requests
+
     loading.value = true
     error.value = null
 
     try {
-      // Ensure we have the latest token
-      if (userToken.value) {
-        ApiService.setAuthToken(userToken.value)
-      }
-
       const data = await ApiService.get('/config/admin')
       config.value = data
+      return data
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Failed to fetch configuration'
-      error.value = errorMessage
-
-      // If it's an auth error, trigger logout
-      if (err.response?.status === 401) {
-        authStore.logout()
-      }
-
+      handleApiError(err)
       throw err
     } finally {
       loading.value = false
@@ -42,27 +52,17 @@ export function useConfig() {
   }
 
   const updateConfig = async (configData) => {
+    if (loading.value) return // Prevent concurrent updates
+
     loading.value = true
     error.value = null
 
     try {
-      // Ensure we have the latest token
-      if (userToken.value) {
-        ApiService.setAuthToken(userToken.value)
-      }
-
       const data = await ApiService.put('/config/admin', configData)
       config.value = data
       return data
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Failed to update configuration'
-      error.value = errorMessage
-
-      // If it's an auth error, trigger logout
-      if (err.response?.status === 401) {
-        authStore.logout()
-      }
-
+      handleApiError(err)
       throw err
     } finally {
       loading.value = false

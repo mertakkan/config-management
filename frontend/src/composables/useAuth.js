@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { ref, onMounted } from 'vue'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/firebase/config'
